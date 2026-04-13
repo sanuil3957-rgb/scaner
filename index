@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Ozon Сканер — Телефон</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: system-ui, -apple-system, 'Inter', sans-serif;
+            background: #0B0F1C;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        .app {
+            max-width: 450px;
+            width: 100%;
+            background: #0B0F1C;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .logo {
+            background: #FF6B00;
+            display: inline-block;
+            padding: 12px 24px;
+            border-radius: 60px;
+            color: white;
+            font-weight: 700;
+            font-size: 18px;
+        }
+        .sub {
+            color: #94A3B8;
+            font-size: 12px;
+            margin-top: 12px;
+        }
+        .input-box {
+            background: #0F172A;
+            border-radius: 28px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        .input-label {
+            color: #94A3B8;
+            font-size: 12px;
+            margin-bottom: 8px;
+        }
+        .code-input {
+            width: 100%;
+            background: #1E293B;
+            border: none;
+            padding: 16px;
+            border-radius: 60px;
+            color: white;
+            font-size: 18px;
+            font-family: monospace;
+            text-align: center;
+            letter-spacing: 2px;
+            outline: none;
+        }
+        .code-input:focus {
+            border: 1px solid #FF6B00;
+        }
+        .btn {
+            width: 100%;
+            background: #FF6B00;
+            border: none;
+            padding: 16px;
+            border-radius: 60px;
+            font-weight: 700;
+            font-size: 16px;
+            color: white;
+            cursor: pointer;
+            margin-top: 16px;
+        }
+        .btn-off {
+            background: #1E293B;
+            color: #E2E8F0;
+        }
+        .result-card {
+            background: #0F172A;
+            border-radius: 24px;
+            padding: 16px;
+            margin-top: 20px;
+        }
+        .result-success { border-left: 4px solid #4ADE80; }
+        .result-error { border-left: 4px solid #FF4444; }
+        .result-info { border-left: 4px solid #FF6B00; }
+        .result-text { color: white; font-size: 14px; }
+        .result-time { font-size: 10px; color: #6B7280; margin-top: 8px; }
+        .history {
+            margin-top: 20px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .history-item {
+            background: #0F172A;
+            border-radius: 16px;
+            padding: 12px;
+            margin-bottom: 8px;
+        }
+        .connection-status {
+            text-align: center;
+            font-size: 12px;
+            padding: 8px;
+            border-radius: 20px;
+            margin-bottom: 16px;
+        }
+        .online { background: #1E3A2F; color: #4ADE80; }
+        .offline { background: #3A1E1E; color: #FF6B6B; }
+        .keyboard {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            margin-top: 20px;
+        }
+        .key {
+            background: #1E293B;
+            border: none;
+            padding: 16px;
+            border-radius: 60px;
+            color: white;
+            font-size: 20px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+        .key-del {
+            background: #3A1E1E;
+            color: #FF6B6B;
+        }
+        .key-clear {
+            background: #334155;
+        }
+    </style>
+</head>
+<body>
+<div class="app">
+    <div class="header">
+        <div class="logo">📷 Ozon Сканер</div>
+        <div class="sub">Введите штрихкод или номер заказа</div>
+    </div>
+
+    <div id="connectionStatus" class="connection-status online">🟢 Онлайн</div>
+
+    <div class="input-box">
+        <div class="input-label">📱 Штрихкод или номер заказа</div>
+        <input type="text" id="codeInput" class="code-input" placeholder="Введите код..." autocomplete="off">
+        <button id="submitBtn" class="btn">✅ Отсканировать / Отправить</button>
+        
+        <div class="keyboard">
+            <button class="key" data-key="1">1</button>
+            <button class="key" data-key="2">2</button>
+            <button class="key" data-key="3">3</button>
+            <button class="key" data-key="4">4</button>
+            <button class="key" data-key="5">5</button>
+            <button class="key" data-key="6">6</button>
+            <button class="key" data-key="7">7</button>
+            <button class="key" data-key="8">8</button>
+            <button class="key" data-key="9">9</button>
+            <button class="key" data-key="0">0</button>
+            <button class="key key-del" data-action="del">⌫</button>
+            <button class="key key-clear" data-action="clear">C</button>
+        </div>
+    </div>
+
+    <div id="lastResult"></div>
+    
+    <div class="history">
+        <div class="input-label" style="margin-bottom: 8px;">📋 Последние операции</div>
+        <div id="historyList"></div>
+    </div>
+</div>
+
+<script>
+    let history = [];
+    let lastCode = '';
+    let lastTime = 0;
+    
+    const codeInput = document.getElementById('codeInput');
+    const submitBtn = document.getElementById('submitBtn');
+    const lastResultDiv = document.getElementById('lastResult');
+    const historyDiv = document.getElementById('historyList');
+    
+    // Загружаем историю
+    const savedHistory = localStorage.getItem('scan_history');
+    if (savedHistory) history = JSON.parse(savedHistory);
+    renderHistory();
+    
+    function renderHistory() {
+        if (history.length === 0) {
+            historyDiv.innerHTML = '<div style="color:#4B5563; text-align:center; padding:20px;">Нет операций</div>';
+            return;
+        }
+        let html = '';
+        history.slice(0, 10).forEach(item => {
+            let color = item.result.includes('✅') || item.result.includes('🎁') ? '#4ADE80' : (item.result.includes('❌') ? '#FF6B6B' : '#FF6B00');
+            html += `<div class="history-item">
+                        <div style="color:${color}">${item.result}</div>
+                        <div style="font-size:10px; color:#6B7280;">${item.time}</div>
+                    </div>`;
+        });
+        historyDiv.innerHTML = html;
+    }
+    
+    function addToHistory(code, result) {
+        history.unshift({ code, result, time: new Date().toLocaleTimeString() });
+        if (history.length > 20) history.pop();
+        localStorage.setItem('scan_history', JSON.stringify(history));
+        renderHistory();
+    }
+    
+    async function sendScan(code) {
+        const now = Date.now();
+        if (lastCode === code && now - lastTime < 1500) return;
+        lastCode = code;
+        lastTime = now;
+        
+        // Ищем в локальных данных (синхронизация через localStorage)
+        const data = JSON.parse(localStorage.getItem('ozon_pvz_data') || '{}');
+        let result = { success: false, message: '', type: '' };
+        
+        // Ищем в товарах на приёмку
+        const pendingIndex = data.pendingItems?.findIndex(i => i.barcode === code);
+        if (pendingIndex !== undefined && pendingIndex !== -1 && data.pendingItems) {
+            const item = data.pendingItems[pendingIndex];
+            data.pendingItems.splice(pendingIndex, 1);
+            data.stock = data.stock || [];
+            data.stock.push({ ...item, status: 'ready' });
+            data.stats = data.stats || { acceptedToday: 0, givenToday: 0, totalMoney: 0 };
+            data.stats.acceptedToday += item.quantity;
+            result = { success: true, message: `✅ Принят: ${item.name} (${item.quantity} шт.)`, type: 'accept' };
+        }
+        
+        // Ищем в заказах
+        const orderIndex = data.orders?.findIndex(o => o.barcode === code || o.id === code);
+        if (orderIndex !== undefined && orderIndex !== -1 && data.orders) {
+            const order = data.orders[orderIndex];
+            if (order.status === 'ready') {
+                order.status = 'given';
+                data.stats.givenToday++;
+                data.stats.totalMoney += order.total;
+                result = { success: true, message: `🎁 Выдан заказ ${order.id} (${order.customer})`, type: 'give' };
+            } else if (order.status === 'given') {
+                result = { success: false, message: `❌ Заказ ${order.id} уже выдан`, type: 'error' };
+            }
+        }
+        
+        // Ищем на складе
+        if (!result.message) {
+            const stockItem = data.stock?.find(i => i.barcode === code);
+            if (stockItem) {
+                result = { success: true, message: `📦 ${stockItem.name} - на складе (${stockItem.quantity} шт.)`, type: 'info' };
+            } else {
+                result = { success: false, message: `⚠️ Штрихкод ${code} не найден`, type: 'error' };
+            }
+        }
+        
+        // Сохраняем изменения
+        localStorage.setItem('ozon_pvz_data', JSON.stringify(data));
+        
+        // Показываем результат
+        const resultClass = result.type === 'error' ? 'result-error' : (result.type === 'accept' || result.type === 'give' ? 'result-success' : 'result-info');
+        const icon = result.type === 'accept' ? '✅' : result.type === 'give' ? '🎁' : result.type === 'error' ? '⚠️' : 'ℹ️';
+        
+        lastResultDiv.innerHTML = `
+            <div class="result-card ${resultClass}">
+                <div class="result-text">${icon} ${result.message}</div>
+                <div class="result-time">${new Date().toLocaleTimeString()}</div>
+            </div>
+        `;
+        
+        addToHistory(code, result.message);
+        
+        // Вибрация
+        if (result.success && navigator.vibrate) navigator.vibrate(100);
+        
+        // Очищаем поле
+        codeInput.value = '';
+        
+        // Отправляем событие для ПК (через localStorage)
+        localStorage.setItem('ozon_scan_event', JSON.stringify({ code, result: result.message, time: Date.now() }));
+    }
+    
+    // Обработчики
+    submitBtn.onclick = () => {
+        const code = codeInput.value.trim();
+        if (code) sendScan(code);
+    };
+    
+    codeInput.onkeypress = (e) => {
+        if (e.key === 'Enter') {
+            const code = codeInput.value.trim();
+            if (code) sendScan(code);
+        }
+    };
+    
+    // Виртуальная клавиатура
+    document.querySelectorAll('.key').forEach(btn => {
+        btn.onclick = () => {
+            if (btn.dataset.key) {
+                codeInput.value += btn.dataset.key;
+            } else if (btn.dataset.action === 'del') {
+                codeInput.value = codeInput.value.slice(0, -1);
+            } else if (btn.dataset.action === 'clear') {
+                codeInput.value = '';
+            }
+            codeInput.focus();
+        };
+    });
+</script>
+</body>
+</html>
